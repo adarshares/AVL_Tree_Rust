@@ -17,8 +17,34 @@ impl Node {
         }))
     }
 
+    fn rotate_left(mut root: Option<Box<Node>>) -> Option<Box<Node>>{
+        match root {
+            Some(mut root_node) => {
+                match ((*root_node).right_child) {
+                    Some(mut root_right_child) => {
+                        match ((*root_right_child).left_child) {
+                            Some(root_right_left_child)=>{
+                                (*root_node).right_child = Some(root_right_left_child);
+                                (*root_right_child).left_child = Some(root_node);
+                                return Some(root_right_child);
+                            }
+
+                            None => {
+                                //root right left child does not exist
+                                (*root_node).right_child = None;
+                                (*root_right_child).left_child = Some(root_node);
+                                return Some(root_right_child);
+                            }
+                            
+                        }
+                    },
+                    None => panic!("no right child present!!!"),
+                }
+            }
+            None => {return None;},
+        }
+    }
     fn rotate_right(){}
-    fn rotate_left(){}
 
     
 
