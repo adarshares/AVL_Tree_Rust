@@ -2,7 +2,7 @@
 
 struct Node {
     value: i32,
-    height: u32,
+    height: i32,
     left_child: Option<Box<Node>>,
     right_child: Option<Box<Node>>,
 }
@@ -44,7 +44,31 @@ impl Node {
             None => {return None;},
         }
     }
-    fn rotate_right(){}
+    fn rotate_right(mut root: Option<Box<Node>>) -> Option<Box<Node>>{
+        match root {
+            Some (mut root_node) => {
+                match (*root_node).left_child {
+                    Some(mut root_left_child) => {
+                        match (*root_left_child).right_child {
+                            Some(root_left_right_child) => {
+                                (*root_node).left_child = Some(root_left_right_child);
+                                (*root_left_child).right_child = Some(root_node);
+                                return Some(root_left_child);
+                            }
+                            None => {
+                                (*root_node).left_child = None;
+                                (*root_left_child).right_child = Some(root_node);
+                                return Some(root_left_child);
+                            }
+                        }
+                    }
+                    None => panic!("no left child present!!!"),
+                }
+                return None;
+            },
+            None => {return None;},
+        }
+    }
 
     
 
