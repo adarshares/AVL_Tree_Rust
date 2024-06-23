@@ -1,6 +1,7 @@
 #![allow(warnings)]
 
-use std::{collections::btree_map::Values, ops::Deref};
+use core::num;
+use std::{fs::File, io::{BufRead, BufReader}, time::Instant};
 
 #[derive(Debug)]
 struct Node {
@@ -11,13 +12,13 @@ struct Node {
 }
 
 impl Node {
-    fn new(new_val:i32) -> Box<Node> {
-        Box::new(Node{
+    fn new(new_val:i32) -> Option<Box<Node>> {
+        Some(Box::new(Node{
             value:new_val,
             height: 1,
             left_child: None,
             right_child: None,
-        })
+        }))
     }
 
     fn get_height(root: &Option<Box<Node>>) -> i32 {
@@ -36,160 +37,158 @@ impl Node {
         return right_child_height;
     }
 
-    fn update_node_height(root: &mut Box<Node>) {
-        root.height = 1+Self::max_height(&(root.right_child), &(root.left_child));
+    fn update_node_height(mut root: Option<Box<Node>>) -> Box<Node> {
+        match root {
+            Some(mut root_node) => {
+                root_node.height = 1+Self::max_height(&((*root_node).right_child), &((*root_node).left_child));
+                return root_node;
+            },
+            None => {panic!("cannote update height of None");}
+        }
     }
 
-    fn rotate_left(root: &mut Box<Node>) -> Option<Box<Node>>{
-        match &mut root.right_child {
-            Some(mut root_right_child) => {
-                match &mut root_right_child.left_child {
-                    Some(mut root_right_left_child)=>{
-                        root.right_child = Some(root_right_left_child);
-                        Self::update_node_height(root);
+    fn rotate_left(mut root: Option<Box<Node>>) -> Option<Box<Node>>{
+        match root {
+            Some(mut root_node) => {
+                match (*root_node).right_child {
+                    Some(mut root_right_child) => {
+                        match (*root_right_child).left_child {
+                            Some(root_right_left_child)=>{
+                                (*root_node).right_child = Some(root_right_left_child);
+                                root_node = Self::update_node_height(Some(root_node));
 
-                        root_right_child.left_child = None;//Some(*root);
-                        Self::update_node_height(&mut root_right_child);
-                        return Some(root_right_child);
-                    }
-                    None => {
-                        //root right left child does not exist
-                        root.right_child = None;
-                        Self::update_node_height(root);
-                        
-                        root_right_child.left_child = None;//Some(*root);
-                        Self::update_node_height(&mut root_right_child);
-                        return Some(root_right_child);
-                    }
-                    
+                                (*root_right_child).left_child = Some(root_node);
+                                root_right_child = Self::update_node_height(Some(root_right_child));
+                                return Some(root_right_child);
+                            }
+                            None => {
+                                //root right left child does not exist
+                                (*root_node).right_child = None;
+                                root_node = Self::update_node_height(Some(root_node));
+                                
+                                (*root_right_child).left_child = Some(root_node);
+                                root_right_child = Self::update_node_height(Some(root_right_child));
+                                return Some(root_right_child);
+                            }
+                            
+                        }
+                    },
+                    None => panic!("no right child present!!!"),
                 }
             },
-            None => panic!("no right child present!!!"),
+            None => {return None;},
         }
     }
+    fn rotate_right(mut root: Option<Box<Node>>) -> Option<Box<Node>>{
+        match root {
+            Some (mut root_node) => {
+                match (*root_node).left_child {
+                    Some(mut root_left_child) => {
+                        match (*root_left_child).right_child {
+                            Some(root_left_right_child) => {
+                                (*root_node).left_child = Some(root_left_right_child);
+                                root_node = Self::update_node_height(Some(root_node));
 
-    fn rotate_right(mut root: &mut Box<Node>) -> Option<Box<Node>>{
-        match &mut root.left_child {
-            Some(root_left_child) => {
-                match root_left_child.right_child {
-                    Some(root_left_right_child) => {
-                        root.left_child = Some(root_left_right_child);
-                        Self::update_node_height(root);
+                                (*root_left_child).right_child = Some(root_node);
+                                root_left_child = Self::update_node_height(Some(root_left_child));
+                                return Some(root_left_child);
+                            }
+                            None => {
+                                (*root_node).left_child = None;
+                                root_node = Self::update_node_height(Some(root_node));
 
-                        (*root_left_child).right_child = Some(*root);
-                        Self::update_node_height(root_left_child);
-                        return Some(*root_left_child);
+                                (*root_left_child).right_child = Some(root_node);
+                                root_left_child = Self::update_node_height(Some(root_left_child));
+                                return Some(root_left_child);
+                            }
+                        }
                     }
-                    None => {
-                        root.left_child = None;
-                        Self::update_node_height(root);
-
-                        root_left_child.right_child = Some(*root);
-                        Self::update_node_height(root_left_child);
-                        return Some(*root_left_child);
-                    }
+                    None => panic!("no left child present!!!"),
                 }
-            }
-            None => panic!("no left child present!!!"),
+            },
+            None => {return None;},
         }
     }
 
-    fn balance_node(mut root:&mut Box<Node>,value:i32) -> Option<Box<Node>> {
-        let balance_factor = Self::get_height(&(*root).left_child) - Self::get_height(&(*root).right_child);
+    fn balance_node(mut root_node:Box<Node>,value:i32) -> Option<Box<Node>> {
+        let balance_factor = Self::get_height(&(*root_node).left_child) - Self::get_height(&(*root_node).right_child);
         //println!("{}",balance_factor);
 
         if balance_factor > 1 {
-            match root.left_child { //fucking insane error //understand partial borrowing
+            match &(*root_node).left_child { //fucking insane error //understand partial borrowing
                 Some( root_left_child) => {
                     if value < (*root_left_child).value {
-                        return Self::rotate_right(root);
+                        return Self::rotate_right(Some(root_node));
                     }
                     else if value > (*root_left_child).value {
-                        (*root).left_child = Self::rotate_left((*root).left_child);
-                        return Self::rotate_right(Some(root));
+                        (*root_node).left_child = Self::rotate_left((*root_node).left_child);
+                        return Self::rotate_right(Some(root_node));
                     } else{
-                        return Some(*root);
+                        return Some(root_node);
                     }
                 }
-                None => {return Some(*root);}
+                None => {return Some(root_node);}
             }
         } else if balance_factor < -1 {
-            match &(*root).right_child { //fucking insane error //understand partial borrowing
+            match &(*root_node).right_child { //fucking insane error //understand partial borrowing
                 Some( root_right_child) => {
                     if value > (*root_right_child).value {
-                        return Self::rotate_left(Some(root));
+                        return Self::rotate_left(Some(root_node));
                     }
                     else if value < (*root_right_child).value {
-                        (*root).right_child = Self::rotate_right((*root).right_child);
-                        return Self::rotate_left(Some(root));
+                        (*root_node).right_child = Self::rotate_right((*root_node).right_child);
+                        return Self::rotate_left(Some(root_node));
                     } else{
-                        return Some(root);
+                        return Some(root_node);
                     }
                 }
-                None => {return Some(root);}
+                None => {return Some(root_node);}
             }
         } else {
-            return Some(root);
+            return Some(root_node);
         }
     }
 
-    fn insertself(&mut self,value:i32) -> Option<Box<Node>>{
+    fn insert(mut root:Option<Box<Node>>, value:i32) -> Option<Box<Node>> {
+        match root {
+            Some(mut root_node)=> {
+                if((*root_node).value < value){
+                    match (*root_node).right_child {
+                        Some(root_right_child) => {
+                            (*root_node).right_child = Self::insert(Some(root_right_child),value);
+                            root_node = Self::update_node_height(Some(root_node));
 
-        //let x = self;
+                            return Self::balance_node(root_node, value);
+                        }
+                        None => {
+                            (*root_node).right_child = Node::new(value);
+                            root_node = Self::update_node_height(Some(root_node));
+                            return Self::balance_node(root_node, value);
+                            //return Some(root_node);
+                        }
+                    }
+                } else if ((*root_node).value > value){
+                    match (*root_node).left_child {
+                        Some(root_left_child) => {
+                            (*root_node).left_child = Self::insert(Some(root_left_child),value);
+                            root_node = Self::update_node_height(Some(root_node));
 
-        if self.value < value { 
-            //go right
-        } else if self.value > value {
-            //go left
-            match &mut self.left_child {
-                Some(left_child) => {
-                    left_child.insertself(value);
+                            return Self::balance_node(root_node, value);
+                        }
+                        None => {
+                            (*root_node).left_child = Node::new(value);
+                            root_node = Self::update_node_height(Some(root_node));
+                            return Self::balance_node(root_node, value);
+                            //return Some(root_node);
+                        }
+                    }
                 }
-                None => {
-                    self.left_child = Some(Node::new(value));
+                else{
+                    return Some(root_node);
                 }
             }
-        } else {
-            //leave
+            None => {panic!("root is NULL");}
         }
-        return None;
-
-    }
-
-    fn insert(mut root:&mut Box<Node>, value:i32) -> Option<Box<Node>> {
-        
-            if(root.value < value){
-                match &mut root.right_child {
-                    Some(root_right_child) => {
-                        root.right_child = Self::insert(root_right_child,value);
-                        Self::update_node_height(root);
-
-                        return Self::balance_node(root, value);
-                    }
-                    None => {
-                        root.right_child = Some(Node::new(value));
-                        Self::update_node_height(root);
-                        return Self::balance_node(root, value);
-                        //return Some(root_node);
-                    }
-                }
-            }
-            else {
-                match &mut root.left_child {
-                    Some(root_left_child) => {
-                        root.left_child = Self::insert(root_left_child,value);
-                        Self::update_node_height(root);
-
-                        return Self::balance_node(root, value);
-                    }
-                    None => {
-                        root.left_child = Some(Node::new(value));
-                        Self::update_node_height(root);
-                        return Self::balance_node(root, value);
-                        //return Some(root_node);
-                    }
-                }
-            }
     }
     
     fn print_sorted(root:Option<Box<Node>>) {
@@ -206,96 +205,78 @@ impl Node {
 
 }
 
+#[derive(Debug)]
 struct Set {
-    node:Option<Box<Node>>,
+    root: Option<Box<Node>>,
 }
 
 impl Set {
-    fn new(new_val:Option<i32>) -> Set {
-        match new_val {
+    fn new(new_value:Option<i32>) -> Set {
+        match new_value {
             Some(value) => {
                 return Set {
-                    node: Some(Node::new(value)),
-                };
+                    root: Node::new(value)
+                }
             }
             None => {
                 return Set{
-                    node:None,
-                };
+                    root: None,
+                }
             }
         }
     }
-    fn insert(&mut self,value:i32) {
 
-        self.node = match &mut self.node {
-            Some(root) => {
-                Node::insert(root, value);
-                None
+    fn insert(&mut self, new_value:i32) {
+        match self.root.take() {
+            Some(root_node) => {
+                self.root = Node::insert(Some(root_node), new_value);
             }
             None => {
-                None
+                self.root = Node::new(new_value);
             }
         }
-
-        //self.node = Node::insertself((self.node) , value);
-       
     }
-}
-
-struct Map (Option<Box<Node>>);
-
-impl Deref for Map {
-    type Target = Option<Box<Node>>;
-    fn deref(&self) -> &Self::Target {
-        return &self.0;
+    fn pnt(&mut self){
+        Node::print_sorted(self.root.take());
     }
-}
-
-impl Map {
-
-    fn new(new_val:Option<i32>) -> Option<Box<Node>> {
-        match new_val {
-            Some(value) => {
-                return (Node::new(value));
-            }
-            None => {return None;}
-        }
-    }
-    // fn insert(&mut self,value:i32) {
-    //     match *self {
-    //         Some(root) => {
-    //             if root.value > value {
-    //                 //go left
-    //                 match &mut root.left_child {
-    //                     Some(root_left_child) => {
-                            
-    //                     }
-    //                     None => {
-    //                         root.left_child = Self::new(Some(value));
-    //                     }
-    //                 }
-    //             } else if root.value < value {
-    //                 //go right
-    //             } else {
-    //                 //leave case
-    //             }
-    //         }
-    //         None => {
-    //             self.node = Self::new(Some(value));
-    //         }
-    //     }
-    // }
 }
 
 fn main() {
-    let mut root = Node::new(9);
+    // Open the file
+    let file = File::open("random_numbers.txt").unwrap();
+    let reader = BufReader::new(file);
+    
+    // Vector to store the integers
+    let mut numbers:Vec<i32> = Vec::new();
+    
+    // Read each line and parse it as an integer
+    for line in reader.lines() {
+        let line = line.unwrap();
+        if let Ok(number) = line.trim().parse::<i32>() {
+            numbers.push(number);
+        }
+    }
+    let x = numbers.len();
+    
+    let mut s = Set::new(None);
+    
+    let start = Instant::now();
+    
+    for number in numbers {
+        s.insert(number);
+    }
+
+    // Stop measuring time
+    let duration = start.elapsed();
+    println!("Time taken to read and parse the file: {:?}", duration);
+    
+    // Output the vector size to verify the result
+    println!("Number of integers read: {}", x);
+    
+    // let mut root = Node::new(9);
     // root = Node::insert(root,8);
     // root = Node::insert(root,7);
     // root = Node::insert(root,6);
     // root = Node::insert(root,5);
-    // root = Node::insert(root,4);
-    // root = Node::insert(root,3);
     // Node::print_sorted(root);
-    //println!("{:?}",root);
-    
 }
