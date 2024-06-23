@@ -9,6 +9,12 @@ using namespace std;
 #define pqp priority_queue<pair<ll,ll> >
 #define pqs priority_queue<ll,vl,greater<ll> >
 #define md ((ll) 1e9+7)
+#include <ext/pb_ds/assoc_container.hpp>
+#include <ext/pb_ds/tree_policy.hpp>
+using namespace __gnu_pbds;
+
+typedef tree<int, null_type, std::less<int>, rb_tree_tag, tree_order_statistics_node_update> ordered_set;
+
 
 // void setio(string name){
 //     freopen((name+".txt").c_str(),"r",stdin);
@@ -29,7 +35,7 @@ void solve(){
     }
 
     infile.close();
-    set<int> s;
+    ordered_set s;
     auto start = std::chrono::high_resolution_clock::now();
     for(auto c:numbers){
         s.insert(c);
@@ -37,7 +43,7 @@ void solve(){
     auto end = std::chrono::high_resolution_clock::now();
 
     std::chrono::duration<double> duration = end - start;
-    std::cout << "Time taken to read and parse the file: " << duration.count() << " seconds" << std::endl;
+    std::cout << "Time taken to insert in AVL tree by c++ (gnu pbds)" << duration.count() << " seconds" << std::endl;
 
     // Output the vector size to verify the result
     std::cout << "Number of integers read: " << numbers.size() << std::endl;

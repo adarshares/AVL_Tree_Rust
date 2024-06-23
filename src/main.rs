@@ -268,10 +268,9 @@ fn main() {
 
     // Stop measuring time
     let duration = start.elapsed();
-    println!("Time taken to read and parse the file: {:?}", duration);
+    println!("Time taken to insert in AVL tree by rust (custom implementation) {:?}", duration);
     
     // Output the vector size to verify the result
-    println!("Number of integers read: {}", x);
     
     // let mut root = Node::new(9);
     // root = Node::insert(root,8);
